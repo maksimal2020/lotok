@@ -334,22 +334,27 @@ export class AdminService {
       .update(complaints)
       .set({ status: input.status, resolution: input.resolution ?? null, handledBy: ctx.actorId, handledAt: new Date() })
       .where(eq(complaints.id, id));
+    let reporters = [c.reporterId];
     // Закрытие всех открытых жалоб на ту же цель тем же решением.
     if (input.status === 'resolved' && input.blockTarget) {
-      await this.db
+      const closed = await this.db
         .update(complaints)
         .set({ status: 'resolved', resolution: input.resolution ?? null, handledBy: ctx.actorId, handledAt: new Date() })
-        .where(and(eq(complaints.targetType, c.targetType), eq(complaints.targetId, c.targetId), inArray(complaints.status, ['new', 'in_review'])));
+        .where(and(eq(complaints.targetType, c.targetType), eq(complaints.targetId, c.targetId), inArray(complaints.status, ['new', 'in_review'])))
+        .returning({ reporterId: complaints.reporterId });
+      reporters = [...new Set([...reporters, ...closed.map((x) => x.reporterId)])];
     }
     await this.audit.log(ctx, 'complaint.resolve', 'complaint', id, { status: c.status }, input);
     if (input.status !== 'in_review') {
-      await this.notifications.notify(c.reporterId, {
-        type: 'complaint.resolved',
-        group: 'listings',
-        title: 'Жалоба рассмотрена',
-        body: input.status === 'resolved' ? 'Спасибо! Мы приняли меры по вашей жалобе.' : 'Мы проверили жалобу и не нашли нарушений.',
-        data: { complaintId: id },
-      });
+      for (const reporterId of reporters) {
+        await this.notifications.notify(reporterId, {
+          type: 'complaint.resolved',
+          group: 'listings',
+          title: 'Жалоба рассмотрена',
+          body: input.status === 'resolved' ? 'Спасибо! Мы приняли меры по вашей жалобе.' : 'Мы проверили жалобу и не нашли нарушений.',
+          data: { complaintId: id },
+        });
+      }
     }
   }
 

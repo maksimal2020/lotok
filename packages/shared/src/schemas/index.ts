@@ -189,33 +189,51 @@ export const regionSchema = z.object({
 
 /* ----------------------------- listings ----------------------------- */
 
-export const listingBaseSchema = z.object({
+/** Поля объявления без значений по умолчанию (для частичного обновления). */
+const listingFields = {
   categoryId: z.number().int().positive(),
   title: z.string().trim().min(3, 'Минимум 3 символа').max(120),
-  description: z.string().trim().max(7500).default(''),
-  price: z.number().int().min(0).max(1_000_000_000_000).nullable().optional(),
-  priceType: z.enum(PRICE_TYPES).default('fixed'),
-  condition: z.enum(ITEM_CONDITIONS).nullable().optional(),
+  description: z.string().trim().max(7500),
+  price: z.number().int().min(0).max(1_000_000_000_000).nullable(),
+  priceType: z.enum(PRICE_TYPES),
+  condition: z.enum(ITEM_CONDITIONS).nullable(),
   cityId: z.number().int().positive(),
-  address: z.string().trim().max(300).nullable().optional(),
-  lat: z.number().min(-90).max(90).nullable().optional(),
-  lng: z.number().min(-180).max(180).nullable().optional(),
-  contactMethods: z.array(z.enum(CONTACT_METHODS)).min(1).max(2).default(['chat']),
-  deliveryAvailable: z.boolean().default(false),
-  quantity: z.number().int().min(1).max(10000).default(1),
-  attributes: z.record(z.string().max(60), attributeValue).default({}),
-  mediaIds: z.array(uuid).max(50).default([]),
+  address: z.string().trim().max(300).nullable(),
+  lat: z.number().min(-90).max(90).nullable(),
+  lng: z.number().min(-180).max(180).nullable(),
+  contactMethods: z.array(z.enum(CONTACT_METHODS)).min(1).max(2),
+  deliveryAvailable: z.boolean(),
+  quantity: z.number().int().min(1).max(10000),
+  attributes: z.record(z.string().max(60), attributeValue),
+  mediaIds: z.array(uuid).max(50),
   videoUrl: z
     .url()
     .max(300)
     .refine((u) => /^https:\/\/(www\.)?(rutube\.ru|vk\.com|vkvideo\.ru|youtube\.com|youtu\.be)\//.test(u), 'Поддерживаются ссылки RuTube, VK Видео, YouTube')
-    .nullable()
-    .optional(),
-  organizationId: uuid.nullable().optional(),
+    .nullable(),
+  organizationId: uuid.nullable(),
+};
+
+export const createListingSchema = z.object({
+  ...listingFields,
+  description: listingFields.description.default(''),
+  price: listingFields.price.optional(),
+  priceType: listingFields.priceType.default('fixed'),
+  condition: listingFields.condition.optional(),
+  address: listingFields.address.optional(),
+  lat: listingFields.lat.optional(),
+  lng: listingFields.lng.optional(),
+  contactMethods: listingFields.contactMethods.default(['chat']),
+  deliveryAvailable: listingFields.deliveryAvailable.default(false),
+  quantity: listingFields.quantity.default(1),
+  attributes: listingFields.attributes.default({}),
+  mediaIds: listingFields.mediaIds.default([]),
+  videoUrl: listingFields.videoUrl.optional(),
+  organizationId: listingFields.organizationId.optional(),
 });
-export const createListingSchema = listingBaseSchema;
+export const listingBaseSchema = createListingSchema;
 export type CreateListingInput = z.infer<typeof createListingSchema>;
-export const updateListingSchema = listingBaseSchema.partial().extend({ version: z.number().int().min(1) });
+export const updateListingSchema = z.object(listingFields).partial().extend({ version: z.number().int().min(1) });
 export type UpdateListingInput = z.infer<typeof updateListingSchema>;
 
 export const listingActionSchema = z.object({ reason: z.string().max(500).optional() });
