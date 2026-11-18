@@ -1,0 +1,22 @@
+{
+  "name": "lotok",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Лоток — платформа частных объявлений (модульный монолит)",
+  "packageManager": "pnpm@10.28.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build:shared": "pnpm --filter @lotok/shared build",
+    "build": "pnpm -r --workspace-concurrency=2 build",
+    "dev:api": "pnpm --filter @lotok/api dev",
+    "dev:worker": "pnpm --filter @lotok/api dev:worker",
+    "dev:web": "pnpm --filter @lotok/web dev",
+    "dev:admin": "pnpm --filter @lotok/admin dev",
+    "db:migrate": "pnpm --filter @lotok/api db:migrate",
+    "db:seed": "pnpm --filter @lotok/api db:seed",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "test:e2e": "pnpm --filter @lotok/e2e test"
+  }
+}
