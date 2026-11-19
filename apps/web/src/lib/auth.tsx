@@ -13,7 +13,7 @@ interface AuthState {
   applyAuth(r: AuthResponse): void;
   logout(all?: boolean): Promise<void>;
   reload(): Promise<void>;
-  setUser(u: Me): void;
+  setUser(u: Me | null): void;
 }
 
 const Ctx = createContext<AuthState | null>(null);
@@ -23,7 +23,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Восстановление сессии по httpOnly cookie.
+    // Восстановление сессии по httpOnly cookie (маркер — читаемая CSRF-cookie, выставляемая вместе с ней).
+    if (!document.cookie.includes('lotok_csrf=')) {
+      setReady(true);
+      return;
+    }
     api
       .refresh()
       .then(async (ok) => {

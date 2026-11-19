@@ -227,7 +227,7 @@ export function SearchView({ initial, category, title }: { initial: SearchResult
           <Button variant="outline" size="sm" className="lg:hidden" onClick={() => setFiltersOpen(true)}>
             <SlidersHorizontal className="size-4" /> Фильтры
           </Button>
-          <Select aria-label="Сортировка" className="h-9 w-auto text-sm" value={params.get('sort') ?? 'relevance'} onChange={(e) => set({ sort: e.target.value === 'relevance' ? null : e.target.value })}>
+          <Select aria-label="Сортировка" className="h-9 w-auto! text-sm" value={params.get('sort') ?? 'relevance'} onChange={(e) => set({ sort: e.target.value === 'relevance' ? null : e.target.value })}>
             {SORTS.filter(([v]) => v !== 'distance' || params.get('lat')).map(([v, l]) => (
               <option key={v} value={v}>
                 {l}

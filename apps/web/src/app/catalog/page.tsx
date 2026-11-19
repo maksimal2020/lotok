@@ -5,7 +5,7 @@ import { CategoryIcon, VERTICAL_COLORS } from '@/components/category-icon';
 import { serverGet } from '@/lib/api';
 
 export const metadata: Metadata = { title: 'Все категории' };
-export const revalidate = 300;
+export const dynamic = 'force-dynamic';
 
 export default async function CatalogPage() {
   const tree = (await serverGet<CategoryDto[]>('/categories', 300).catch(() => null)) ?? [];

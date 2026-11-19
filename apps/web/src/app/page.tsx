@@ -4,7 +4,7 @@ import { CategoryIcon, VERTICAL_COLORS } from '@/components/category-icon';
 import { HomeFeed } from '@/components/home-feed';
 import { serverGet } from '@/lib/api';
 
-export const revalidate = 300;
+export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
   const tree = (await serverGet<CategoryDto[]>('/categories', 300).catch(() => null)) ?? [];
@@ -15,13 +15,13 @@ export default async function HomePage() {
         <h2 id="cats" className="sr-only">
           Категории
         </h2>
-        <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-11">
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 sm:gap-2.5 xl:grid-cols-12">
           {tiles.map((c) => (
-            <Link key={c.id} href={`/c/${c.slug}`} className="group flex flex-col items-center gap-2 rounded-2xl bg-white p-3 text-center transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)]">
-              <span className={`flex size-12 items-center justify-center rounded-2xl ${VERTICAL_COLORS[c.vertical]}`}>
+            <Link key={c.id} href={`/c/${c.slug}`} className="group flex flex-col items-center gap-2 rounded-2xl bg-white p-2 text-center transition md:p-3 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)]">
+              <span className={`flex size-11 items-center justify-center rounded-2xl md:size-12 ${VERTICAL_COLORS[c.vertical]}`}>
                 <CategoryIcon name={c.icon} />
               </span>
-              <span className="line-clamp-2 text-[13px] font-semibold leading-tight">{c.name}</span>
+              <span className="line-clamp-2 break-anywhere text-[12px] font-semibold leading-tight md:text-[13px]">{c.name}</span>
             </Link>
           ))}
           <Link href="/catalog" className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-white p-3 text-center text-[13px] font-semibold text-brand-600 hover:shadow-[var(--shadow-card)]">

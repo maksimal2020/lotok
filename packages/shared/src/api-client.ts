@@ -63,9 +63,9 @@ export class ApiClient {
     return this.opts.baseUrl;
   }
 
-  async request<T>(method: string, path: string, init: { body?: unknown; query?: Query; auth?: boolean; form?: FormData; signal?: AbortSignal } = {}): Promise<T> {
+  async request<T>(method: string, path: string, init: { body?: unknown; query?: Query; auth?: boolean; form?: FormData; signal?: AbortSignal; headers?: Record<string, string> } = {}): Promise<T> {
     const doFetch = async () => {
-      const headers: Record<string, string> = { Accept: 'application/json', ...(this.opts.headers ?? {}) };
+      const headers: Record<string, string> = { Accept: 'application/json', ...(this.opts.headers ?? {}), ...(init.headers ?? {}) };
       const token = this.opts.tokens ? await this.opts.tokens.getAccessToken() : null;
       if (token) headers.Authorization = `Bearer ${token}`;
       let body: BodyInit | undefined;
