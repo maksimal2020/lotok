@@ -23,7 +23,9 @@ const LABELS: Record<string, string> = {
 function SettingRow({ k, value, onSaved }: { k: string; value: unknown; onSaved: () => void }) {
   const toast = useToast();
   const [v, setV] = useState(value === null ? '' : String(value));
-  useEffect(() => setV(value === null ? '' : String(value)), [value]);
+  useEffect(() => {
+    setV(value === null ? '' : String(value));
+  }, [value]);
   const isBool = typeof value === 'boolean';
   return (
     <div className="flex flex-wrap items-center gap-3 border-b border-ink-100 py-3">

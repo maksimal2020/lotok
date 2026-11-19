@@ -1,0 +1,27 @@
+groups:
+  - name: lotok-api
+    rules:
+      - alert: ApiDown
+        expr: up{job="lotok-api"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: 'API недоступен ({{ $labels.instance }})' }
+      - alert: High5xxRate
+        expr: sum(rate(lotok_http_request_duration_seconds_count{status=~"5.."}[5m])) / sum(rate(lotok_http_request_duration_seconds_count[5m])) > 0.02
+        for: 5m
+        labels: { severity: critical }
+        annotations: { summary: 'Доля ответов 5xx выше 2%' }
+      - alert: SlowRequests
+        expr: histogram_quantile(0.95, sum(rate(lotok_http_request_duration_seconds_bucket[5m])) by (le)) > 1
+        for: 10m
+        labels: { severity: warning }
+        annotations: { summary: 'p95 времени ответа API выше 1 с' }
+      - alert: PaymentWebhookSignatureFailures
+        expr: increase(lotok_business_events_total{event="payment_webhook_invalid"}[15m]) > 5
+        labels: { severity: warning }
+        annotations: { summary: 'Много отклонённых платёжных уведомлений' }
+      - alert: EventLoopLag
+        expr: lotok_nodejs_eventloop_lag_p99_seconds > 0.5
+        for: 5m
+        labels: { severity: warning }
+        annotations: { summary: 'Высокая задержка event loop Node.js' }

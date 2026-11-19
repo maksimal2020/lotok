@@ -7,6 +7,9 @@ const nextConfig = {
   transpilePackages: ['@lotok/shared'],
   poweredByHeader: false,
   reactStrictMode: true,
+  env: {
+    NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL ?? (process.env.NODE_ENV === 'development' ? 'http://localhost:4000' : ''),
+  },
   // В разработке веб проксирует API на тот же origin (cookie первой стороны, без CORS). В production это делает nginx.
   async rewrites() {
     return [

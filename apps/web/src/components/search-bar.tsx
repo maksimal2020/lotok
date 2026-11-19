@@ -17,7 +17,9 @@ export function SearchBar({ autoFocus }: { autoFocus?: boolean }) {
   const listId = useId();
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  useEffect(() => setQ(params.get('q') ?? ''), [params]);
+  useEffect(() => {
+    setQ(params.get('q') ?? '');
+  }, [params]);
 
   useEffect(() => {
     clearTimeout(timer.current);

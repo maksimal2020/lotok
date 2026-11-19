@@ -1,0 +1,46 @@
+{{- range $name := list "web" "admin" }}
+{{- $cfg := index $.Values $name }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lotok-{{ $name }}
+  labels: {{- include "lotok.labels" $ | nindent 4 }}
+    app: lotok-{{ $name }}
+spec:
+  replicas: {{ $cfg.replicas }}
+  selector: { matchLabels: { app: lotok-{{ $name }} } }
+  template:
+    metadata: { labels: { app: lotok-{{ $name }} } }
+    spec:
+      securityContext: { runAsNonRoot: true }
+      containers:
+        - name: {{ $name }}
+          image: {{ include "lotok.image" (dict "root" $ "name" $name) }}
+          ports: [{ containerPort: 3000, name: http }]
+          env:
+            - { name: API_INTERNAL_URL, value: "http://lotok-api:4000" }
+          readinessProbe: { httpGet: { path: /, port: http }, periodSeconds: 10 }
+          livenessProbe: { httpGet: { path: /, port: http }, periodSeconds: 30, initialDelaySeconds: 20 }
+          resources: {{- toYaml $cfg.resources | nindent 12 }}
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: lotok-{{ $name }} }
+spec:
+  selector: { app: lotok-{{ $name }} }
+  ports: [{ port: 3000, targetPort: http, name: http }]
+---
+{{- end }}
+{{- if .Values.web.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: lotok-web }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: lotok-web }
+  minReplicas: {{ .Values.web.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.web.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: {{ .Values.web.autoscaling.targetCPU }} } }
+{{- end }}

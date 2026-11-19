@@ -46,6 +46,7 @@ for (const g of GROUPS) for (const w of g) INDEX.set(w, [...new Set([...(INDEX.g
 
 /** Варианты запроса: исходный + с заменой слов на синонимы (не более 4 вариантов). */
 export function expandQuery(q: string): string[] {
+  q = q.replace(/ё/g, 'е').replace(/Ё/g, 'Е');
   const words = q.toLowerCase().replace(/ё/g, 'е').split(/\s+/).filter(Boolean);
   const variants = new Set<string>([q]);
   words.forEach((w, i) => {

@@ -13,7 +13,7 @@ import { priceLabel, relativeDate } from '@/lib/format';
 import { Skeleton, useToast } from './ui';
 
 export function FavoriteButton({ listing, className }: { listing: Pick<Card, 'id' | 'isFavorite'>; className?: string }) {
-  const { user } = useAuth();
+  const { user, ready } = useAuth();
   const router = useRouter();
   const toast = useToast();
   const qc = useQueryClient();
@@ -28,6 +28,7 @@ export function FavoriteButton({ listing, className }: { listing: Pick<Card, 'id
       onClick={async (e) => {
         e.preventDefault();
         e.stopPropagation();
+        if (!ready) return;
         if (!user) return router.push('/auth/login?next=' + encodeURIComponent(location.pathname));
         setBusy(true);
         const next = !fav;

@@ -9,7 +9,7 @@ import { Alert, Badge, Button, Card, ErrorState, Field, Input, Modal, PageTitle,
 import { api, errorMessage } from '@/lib/api';
 import { useRequireAuth } from '@/lib/auth';
 import { dateTime, rub } from '@/lib/format';
-import { getSocket } from '@/lib/socket';
+import { useSocket } from '@/lib/socket';
 
 const ACTION_LABELS: Record<string, string> = {
   confirm: 'Подтвердить заказ',
@@ -70,14 +70,19 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   const [tracking, setTracking] = useState('');
   const [busy, setBusy] = useState(false);
 
+  const socket = useSocket();
   useEffect(() => {
-    const s = getSocket();
+    const s = socket;
     if (!s) return;
-    const h = (e: { orderId: string }) => e.orderId === id && void q.refetch();
+    const h = (e: { orderId: string }) => {
+      if (e.orderId === id) void q.refetch();
+    };
     s.on('order:updated', h);
-    return () => void s.off('order:updated', h);
+    return () => {
+      s.off('order:updated', h);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, user?.id]);
+  }, [id, socket]);
 
   // После возврата со страницы оплаты сверяем статус с провайдером.
   useEffect(() => {

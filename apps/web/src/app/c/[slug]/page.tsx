@@ -23,7 +23,7 @@ export default async function CategoryRoute({ params, searchParams }: Props) {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) if (typeof v === 'string') qs.set(k, v);
   qs.set('categoryId', String(category.id));
-  const initial = await serverGet<SearchResult>(`/search?${qs.toString()}`, 15).catch(() => null);
+  const initial = await serverGet<SearchResult>(`/search?${qs.toString()}`, 0).catch(() => null);
   return (
     <>
       <nav aria-label="Хлебные крошки" className="container-page pt-5 text-sm text-ink-500">

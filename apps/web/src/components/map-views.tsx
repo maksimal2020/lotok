@@ -20,7 +20,9 @@ const pinIcon = (label: string, active = false) =>
 
 function BoundsWatcher({ onChange }: { onChange: (b: L.LatLngBounds) => void }) {
   const map = useMapEvents({ moveend: () => onChange(map.getBounds()) });
-  useEffect(() => onChange(map.getBounds()), [map, onChange]);
+  useEffect(() => {
+    onChange(map.getBounds());
+  }, [map, onChange]);
   return null;
 }
 

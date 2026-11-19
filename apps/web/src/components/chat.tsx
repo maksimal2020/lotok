@@ -9,7 +9,7 @@ import type { ConversationDto, CursorPage, MediaItem, MessageDto } from '@lotok/
 import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { lastSeen, priceLabel, relativeDate, time } from '@/lib/format';
-import { getSocket } from '@/lib/socket';
+import { getSocket, useSocket } from '@/lib/socket';
 import { Alert, Avatar, Button, EmptyState, ErrorState, Input, Skeleton, Tabs, useConfirm, useToast } from './ui';
 
 type Pending = MessageDto & { pending?: boolean; failed?: boolean };
@@ -18,12 +18,13 @@ export function ConversationList({ activeId }: { activeId?: string }) {
   const [archived, setArchived] = useState(false);
   const [q, setQ] = useState('');
   const qc = useQueryClient();
+  const socket = useSocket();
   const list = useQuery({
     queryKey: ['conversations', archived, q],
     queryFn: () => api.get<CursorPage<ConversationDto>>('/conversations', { archived, q: q || undefined }),
   });
   useEffect(() => {
-    const s = getSocket();
+    const s = socket;
     if (!s) return;
     const refresh = () => void qc.invalidateQueries({ queryKey: ['conversations'] });
     s.on('message:new', refresh);
@@ -32,7 +33,7 @@ export function ConversationList({ activeId }: { activeId?: string }) {
       s.off('message:new', refresh);
       s.off('conversation:read', refresh);
     };
-  }, [qc]);
+  }, [qc, socket]);
   return (
     <div className="flex h-full flex-col">
       <div className="space-y-3 border-b border-ink-100 p-3">
@@ -118,6 +119,7 @@ export function ChatWindow({ id }: { id: string }) {
   const [online, setOnline] = useState(true);
   const [typing, setTyping] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
+  const socket = useSocket();
   const fileRef = useRef<HTMLInputElement>(null);
   const conv = useQuery({ queryKey: ['conversation', id], queryFn: () => api.get<ConversationDto>(`/conversations/${id}`) });
   const msgs = useInfiniteQuery({
@@ -134,7 +136,7 @@ export function ChatWindow({ id }: { id: string }) {
 
   useEffect(() => {
     markRead();
-    const s = getSocket();
+    const s = socket;
     if (!s) return;
     const onNew = (m: MessageDto) => {
       if (m.conversationId !== id) return;
@@ -183,9 +185,11 @@ export function ChatWindow({ id }: { id: string }) {
       s.off('disconnect', onDisconnect);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, user?.id]);
+  }, [id, user?.id, socket]);
 
-  useLayoutEffect(() => bottom.current?.scrollIntoView({ block: 'end' }), [merged.length]);
+  useLayoutEffect(() => {
+    bottom.current?.scrollIntoView({ block: 'end' });
+  }, [merged.length]);
 
   const send = async (body: string, attachmentMediaId?: string) => {
     const clientMessageId = `c${Date.now()}${Math.random().toString(36).slice(2, 8)}`;

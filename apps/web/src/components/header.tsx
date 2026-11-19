@@ -8,7 +8,7 @@ import { usePathname } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { getSocket } from '@/lib/socket';
+import { useSocket } from '@/lib/socket';
 import { Logo } from './logo';
 import { SearchBar } from './search-bar';
 import { Avatar } from './ui';
@@ -16,10 +16,9 @@ import { Avatar } from './ui';
 function useCounters(enabled: boolean) {
   const unread = useQuery({ queryKey: ['unread'], queryFn: () => api.get<{ messages: number }>('/conversations/unread'), enabled, refetchInterval: 60_000 });
   const notes = useQuery({ queryKey: ['notes-unread'], queryFn: () => api.get<{ count: number }>('/notifications/unread-count'), enabled, refetchInterval: 60_000 });
+  const s = useSocket();
   useEffect(() => {
-    if (!enabled) return;
-    const s = getSocket();
-    if (!s) return;
+    if (!enabled || !s) return;
     const refresh = () => {
       void unread.refetch();
       void notes.refetch();
@@ -33,7 +32,7 @@ function useCounters(enabled: boolean) {
       s.off('notification:new', refresh);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled]);
+  }, [enabled, s]);
   return { messages: unread.data?.messages ?? 0, notifications: notes.data?.count ?? 0 };
 }
 

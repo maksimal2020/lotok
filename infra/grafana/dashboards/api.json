@@ -1,0 +1,41 @@
+{
+  "title": "Лоток — API",
+  "uid": "lotok-api",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "type": "timeseries", "title": "Запросы в секунду по статусам", "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [{ "expr": "sum(rate(lotok_http_request_duration_seconds_count[1m])) by (status)", "legendFormat": "{{status}}" }]
+    },
+    {
+      "type": "timeseries", "title": "Время ответа p50 / p95 / p99", "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "histogram_quantile(0.5, sum(rate(lotok_http_request_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, sum(rate(lotok_http_request_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, sum(rate(lotok_http_request_duration_seconds_bucket[5m])) by (le))", "legendFormat": "p99" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "Самые медленные маршруты (p95)", "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [{ "expr": "topk(10, histogram_quantile(0.95, sum(rate(lotok_http_request_duration_seconds_bucket[5m])) by (le, route)))", "legendFormat": "{{route}}" }]
+    },
+    {
+      "type": "timeseries", "title": "Бизнес-события", "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [{ "expr": "sum(increase(lotok_business_events_total[5m])) by (event)", "legendFormat": "{{event}}" }]
+    },
+    {
+      "type": "stat", "title": "WebSocket-соединения", "gridPos": { "x": 0, "y": 16, "w": 6, "h": 5 },
+      "targets": [{ "expr": "sum(lotok_ws_connections)" }]
+    },
+    {
+      "type": "timeseries", "title": "Память процесса", "gridPos": { "x": 6, "y": 16, "w": 9, "h": 5 },
+      "targets": [{ "expr": "lotok_process_resident_memory_bytes", "legendFormat": "{{instance}}" }]
+    },
+    {
+      "type": "timeseries", "title": "Event loop lag p99", "gridPos": { "x": 15, "y": 16, "w": 9, "h": 5 },
+      "targets": [{ "expr": "lotok_nodejs_eventloop_lag_p99_seconds", "legendFormat": "{{instance}}" }]
+    }
+  ]
+}

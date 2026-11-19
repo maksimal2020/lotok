@@ -439,7 +439,7 @@ export const listings = pgTable(
     indexedAt: timestamp({ withTimezone: true }),
     deletedAt: timestamp({ withTimezone: true }),
     searchTsv: tsvector().generatedAlwaysAs(
-      sql`setweight(to_tsvector('russian', coalesce(title, '')), 'A') || setweight(to_tsvector('russian', coalesce(description, '')), 'B')`,
+      sql`setweight(to_tsvector('russian', translate(coalesce(title, ''), 'ёЁ', 'еЕ')), 'A') || setweight(to_tsvector('russian', translate(coalesce(description, ''), 'ёЁ', 'еЕ')), 'B')`,
     ),
     ...timestamps,
   },
@@ -676,7 +676,7 @@ export const messages = pgTable(
     deliveredAt: timestamp({ withTimezone: true }),
     readAt: timestamp({ withTimezone: true }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-    bodyTsv: tsvector().generatedAlwaysAs(sql`to_tsvector('russian', coalesce(body, ''))`),
+    bodyTsv: tsvector().generatedAlwaysAs(sql`to_tsvector('russian', translate(coalesce(body, ''), 'ёЁ', 'еЕ'))`),
   },
   (t) => [
     index('messages_conv_idx').on(t.conversationId, t.createdAt),

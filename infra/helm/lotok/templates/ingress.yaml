@@ -1,0 +1,44 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lotok
+  labels: {{- include "lotok.labels" . | nindent 4 }}
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 20m
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "Strict-Transport-Security: max-age=31536000; includeSubDomains";
+      more_set_headers "X-Content-Type-Options: nosniff";
+    nginx.ingress.kubernetes.io/server-snippet: |
+      location ~ ^/(metrics|health|api/docs) { deny all; }
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls: [{ hosts: [{{ .Values.ingress.host }}], secretName: {{ .Values.ingress.tls.secretName }} }]
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.host }}
+      http:
+        paths:
+          - { path: /api, pathType: Prefix, backend: { service: { name: lotok-api, port: { number: 4000 } } } }
+          - { path: /socket.io, pathType: Prefix, backend: { service: { name: lotok-api, port: { number: 4000 } } } }
+          - { path: /, pathType: Prefix, backend: { service: { name: lotok-web, port: { number: 3000 } } } }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lotok-admin
+  annotations:
+    nginx.ingress.kubernetes.io/whitelist-source-range: {{ .Values.ingress.adminWhitelist | quote }}
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Robots-Tag: noindex, nofollow";
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls: [{ hosts: [{{ .Values.ingress.adminHost }}], secretName: {{ .Values.ingress.tls.secretName }}-admin }]
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.adminHost }}
+      http:
+        paths:
+          - { path: /api, pathType: Prefix, backend: { service: { name: lotok-api, port: { number: 4000 } } } }
+          - { path: /, pathType: Prefix, backend: { service: { name: lotok-admin, port: { number: 3000 } } } }

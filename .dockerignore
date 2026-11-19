@@ -1,0 +1,11 @@
+**/node_modules
+**/.next
+**/dist
+**/coverage
+**/.expo
+e2e/playwright-report
+e2e/test-results
+.git
+.env*
+!.env.example
+apps/mobile

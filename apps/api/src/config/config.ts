@@ -72,6 +72,8 @@ const envSchema = z
     METRICS_TOKEN: z.string().optional(),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
     SWAGGER_ENABLED: bool.default(true),
+    /** Только для E2E-стендов: /api/v1/_test/* (чтение писем и SMS). В production запрещено. */
+    ENABLE_TEST_ENDPOINTS: bool.default(false),
     /** Множитель лимитов запросов (для нагрузочных стендов). */
     RATE_LIMIT_MULTIPLIER: z.coerce.number().positive().default(1),
   })
@@ -84,6 +86,7 @@ const envSchema = z
     if (env.PAYMENT_PROVIDER === 'yookassa' && (!env.YOOKASSA_SHOP_ID || !env.YOOKASSA_SECRET_KEY)) {
       ctx.addIssue({ code: 'custom', path: ['YOOKASSA_SHOP_ID'], message: 'Нужны YOOKASSA_SHOP_ID и YOOKASSA_SECRET_KEY' });
     }
+    if (env.ENABLE_TEST_ENDPOINTS) ctx.addIssue({ code: 'custom', path: ['ENABLE_TEST_ENDPOINTS'], message: 'Тестовые эндпоинты запрещены в production' });
     if (env.QUEUE_MODE === 'inline') ctx.addIssue({ code: 'custom', path: ['QUEUE_MODE'], message: 'inline-очередь недопустима в production' });
     if (!env.COOKIE_SECURE) ctx.addIssue({ code: 'custom', path: ['COOKIE_SECURE'], message: 'В production cookie должны быть Secure' });
   });

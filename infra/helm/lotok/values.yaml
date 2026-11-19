@@ -1,0 +1,73 @@
+# Значения по умолчанию. Окружение-специфичные значения и секреты — в отдельном файле (HELM_VALUES_FILE в CI)
+# и в Kubernetes Secret (`existingSecret`), создаваемом из secret storage (Vault / Lockbox / External Secrets).
+
+image:
+  registry: registry.example.com/lotok
+  tag: latest
+  pullPolicy: IfNotPresent
+
+existingSecret: lotok-secrets   # ключи: DATABASE_URL, REDIS_URL, JWT_ACCESS_SECRET, APP_SIGNING_SECRET, S3_ACCESS_KEY, S3_SECRET_KEY, YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY, SMSRU_API_ID, EXPO_ACCESS_TOKEN, METRICS_TOKEN, SMTP_URL, OPENSEARCH_PASSWORD
+
+config:
+  NODE_ENV: production
+  API_PUBLIC_URL: https://lotok.example
+  WEB_URL: https://lotok.example
+  ADMIN_URL: https://admin.lotok.example
+  CORS_ORIGINS: https://lotok.example,https://admin.lotok.example
+  COOKIE_SECURE: "true"
+  TRUST_PROXY: "1"
+  STORAGE_DRIVER: s3
+  S3_ENDPOINT: https://storage.yandexcloud.net
+  S3_REGION: ru-central1
+  S3_BUCKET: lotok-media
+  S3_PRIVATE_BUCKET: lotok-private
+  S3_PUBLIC_URL: https://cdn.lotok.example
+  SEARCH_DRIVER: opensearch
+  OPENSEARCH_URL: https://opensearch.internal:9200
+  QUEUE_MODE: bullmq
+  MAIL_DRIVER: smtp
+  MAIL_FROM: "Лоток <no-reply@lotok.example>"
+  SMS_DRIVER: smsru
+  PUSH_DRIVER: expo
+  PAYMENT_PROVIDER: yookassa
+  AV_DRIVER: clamav
+  CLAMAV_HOST: clamav
+  LOG_LEVEL: info
+  SWAGGER_ENABLED: "false"
+
+api:
+  replicas: 2
+  resources: { requests: { cpu: 250m, memory: 384Mi }, limits: { cpu: "1", memory: 768Mi } }
+  autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 10, targetCPU: 70 }
+
+worker:
+  replicas: 2
+  resources: { requests: { cpu: 250m, memory: 384Mi }, limits: { cpu: "1", memory: 1Gi } }
+
+web:
+  replicas: 2
+  resources: { requests: { cpu: 200m, memory: 256Mi }, limits: { cpu: "1", memory: 512Mi } }
+  autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 8, targetCPU: 70 }
+
+admin:
+  replicas: 1
+  resources: { requests: { cpu: 100m, memory: 192Mi }, limits: { cpu: 500m, memory: 384Mi } }
+
+ingress:
+  className: nginx
+  host: lotok.example
+  adminHost: admin.lotok.example
+  tls: { enabled: true, secretName: lotok-tls }
+  # Админка — только из корпоративной сети/VPN.
+  adminWhitelist: "10.0.0.0/8"
+
+clamav:
+  enabled: true
+  image: clamav/clamav:1.4
+
+backup:
+  enabled: true
+  schedule: "15 2 * * *"
+  image: postgres:16-alpine
+  retentionDays: 14
+  s3Bucket: s3://lotok-backups

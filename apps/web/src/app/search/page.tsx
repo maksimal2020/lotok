@@ -15,7 +15,7 @@ export default async function SearchPage({ searchParams }: Props) {
   const sp = await searchParams;
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) if (typeof v === 'string') qs.set(k, v);
-  const initial = await serverGet<SearchResult>(`/search?${qs.toString()}`, 15).catch(() => null);
+  const initial = await serverGet<SearchResult>(`/search?${qs.toString()}`, 0).catch(() => null);
   const q = typeof sp.q === 'string' ? sp.q : '';
   return (
     <Suspense>

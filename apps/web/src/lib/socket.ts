@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { api, getAccessToken, onTokenChange } from './api';
 
@@ -13,7 +14,10 @@ export function getSocket(): Socket | null {
   if (typeof window === 'undefined') return null;
   if (socket) return socket;
   if (!getAccessToken()) return null;
-  socket = io({
+  // В production WebSocket идёт через nginx на тот же origin; в dev/E2E (без nginx) — напрямую в API,
+  // т.к. rewrites Next.js не проксируют upgrade-запросы.
+  const url = process.env.NEXT_PUBLIC_WS_URL || undefined;
+  socket = io(url as string, {
     path: '/socket.io',
     transports: ['websocket', 'polling'],
     auth: (cb) => cb({ token: getAccessToken() }),
@@ -31,4 +35,18 @@ export function getSocket(): Socket | null {
     }
   });
   return socket;
+}
+
+/** Сокет как состояние React: появляется после восстановления сессии/входа, исчезает при выходе. */
+export function useSocket(): Socket | null {
+  const [s, setS] = useState<Socket | null>(null);
+  useEffect(() => {
+    const update = () => setS(getAccessToken() ? getSocket() : null);
+    update();
+    const off = onTokenChange(() => update());
+    return () => {
+      off();
+    };
+  }, []);
+  return s;
 }

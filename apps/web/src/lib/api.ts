@@ -33,7 +33,10 @@ export const api = new ApiClient({
 export async function serverGet<T>(path: string, revalidate = 30): Promise<T | null> {
   const base = process.env.API_INTERNAL_URL ?? 'http://localhost:4000';
   try {
-    const res = await fetch(`${base}/api/v1${path}`, { next: { revalidate }, headers: { Accept: 'application/json' } });
+    // revalidate = 0 — без кэша (поисковая выдача должна быть свежей).
+    const init: RequestInit & { next?: { revalidate: number } } =
+      revalidate > 0 ? { next: { revalidate }, headers: { Accept: 'application/json' } } : { cache: 'no-store', headers: { Accept: 'application/json' } };
+    const res = await fetch(`${base}/api/v1${path}`, init);
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`API ${res.status}`);
     return (await res.json()) as T;

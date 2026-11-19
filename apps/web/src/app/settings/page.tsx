@@ -206,7 +206,9 @@ function NotificationsSection() {
   const toast = useToast();
   const q = useQuery({ queryKey: ['prefs'], queryFn: () => api.get<NotificationPreferenceDto[]>('/users/me/notification-preferences') });
   const [prefs, setPrefs] = useState<NotificationPreferenceDto[]>([]);
-  useEffect(() => q.data && setPrefs(q.data), [q.data]);
+  useEffect(() => {
+    if (q.data) setPrefs(q.data);
+  }, [q.data]);
   const get = (g: string, c: string) => prefs.find((p) => p.group === g && p.channel === c)?.enabled ?? false;
   const channels = NOTIFICATION_CHANNELS.filter((c) => c !== 'sms');
   return (

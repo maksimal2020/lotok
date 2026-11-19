@@ -51,7 +51,8 @@ function Gallery({ l }: { l: ListingDetail }) {
 }
 
 function ContactPanel({ l }: { l: ListingDetail }) {
-  const { user } = useAuth();
+  // Пока сессия восстанавливается, кнопки неактивны — иначе клик до восстановления уводил бы на страницу входа.
+  const { user, ready } = useAuth();
   const router = useRouter();
   const toast = useToast();
   const [phone, setPhone] = useState<string | null>(null);
@@ -90,7 +91,7 @@ function ContactPanel({ l }: { l: ListingDetail }) {
         </LinkButton>
       )}
       {l.contactMethods.includes('chat') && (
-        <Button size="lg" block onClick={() => (user ? setMsgOpen(true) : needAuth())}>
+        <Button size="lg" block disabled={!ready} onClick={() => (user ? setMsgOpen(true) : needAuth())}>
           <MessageCircle className="size-5" /> Написать продавцу
         </Button>
       )}
@@ -99,6 +100,7 @@ function ContactPanel({ l }: { l: ListingDetail }) {
           size="lg"
           variant="outline"
           block
+          disabled={!ready}
           onClick={async () => {
             if (!user) return needAuth();
             try {
@@ -208,6 +210,8 @@ export function ListingDetailView({ id, initial }: { id: string; initial: Listin
     queryKey: ['listing', id, user?.id ?? 'anon'],
     queryFn: () => api.get<ListingDetail>(`/listings/${id}`),
     initialData: initial ?? undefined,
+    // SSR-данные могут быть закэшированы (ISR) — на клиенте всегда сверяемся с API (статус, избранное, владелец).
+    initialDataUpdatedAt: 0,
     enabled: ready,
   });
   useEffect(() => {

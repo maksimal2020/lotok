@@ -56,6 +56,7 @@ import { OrganizationsController } from './modules/organizations/organizations.c
 import { AdminService } from './modules/admin/admin.service';
 import { AdminController } from './modules/admin/admin.controller';
 import { HealthController } from './modules/health/health.controller';
+import { TestingController } from './modules/health/testing.controller';
 
 /**
  * Модульный монолит: доменные сервисы разнесены по папкам modules/*, но собраны в один DI-контейнер,
@@ -140,6 +141,7 @@ export class AppModule implements NestModule {
         OrganizationsController,
         AdminController,
         HealthController,
+        ...(config.ENABLE_TEST_ENDPOINTS && !config.isProd ? [TestingController] : []),
       ],
       providers: [
         ...DOMAIN_PROVIDERS,

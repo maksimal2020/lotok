@@ -1,0 +1,51 @@
+{{- if .Values.clamav.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: clamav, labels: { app: clamav } }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: clamav } }
+  template:
+    metadata: { labels: { app: clamav } }
+    spec:
+      containers:
+        - name: clamav
+          image: {{ .Values.clamav.image }}
+          ports: [{ containerPort: 3310 }]
+          resources: { requests: { cpu: 200m, memory: 1Gi }, limits: { memory: 2Gi } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: clamav }
+spec:
+  selector: { app: clamav }
+  ports: [{ port: 3310 }]
+---
+{{- end }}
+{{- if .Values.backup.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata: { name: lotok-db-backup }
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: {{ .Values.backup.image }}
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -e
+                  F=/backup/lotok-$(date -u +%Y%m%dT%H%M%SZ).dump
+                  pg_dump --format=custom --compress=6 --no-owner --file="$F" "$DATABASE_URL"
+                  pg_restore --list "$F" > /dev/null
+                  echo "dump ok: $F (выгрузка в {{ .Values.backup.s3Bucket }} — sidecar/rclone или managed backup провайдера)"
+              envFrom: [{ secretRef: { name: {{ .Values.existingSecret }} } }]
+              volumeMounts: [{ name: backup, mountPath: /backup }]
+          volumes: [{ name: backup, emptyDir: {} }]
+{{- end }}

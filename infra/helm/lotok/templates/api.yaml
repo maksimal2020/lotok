@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lotok-api
+  labels: {{- include "lotok.labels" . | nindent 4 }}
+    app: lotok-api
+spec:
+  replicas: {{ .Values.api.replicas }}
+  selector: { matchLabels: { app: lotok-api } }
+  strategy: { type: RollingUpdate, rollingUpdate: { maxUnavailable: 0, maxSurge: 1 } }
+  template:
+    metadata:
+      labels: { app: lotok-api }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4000"
+        prometheus.io/path: /metrics
+    spec:
+      securityContext: { runAsNonRoot: true }
+      containers:
+        - name: api
+          image: {{ include "lotok.image" (dict "root" . "name" "api") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports: [{ containerPort: 4000, name: http }]
+          {{- include "lotok.apiEnv" . | nindent 10 }}
+          readinessProbe: { httpGet: { path: /health/ready, port: http }, periodSeconds: 10, failureThreshold: 3 }
+          livenessProbe: { httpGet: { path: /health/live, port: http }, periodSeconds: 20, failureThreshold: 3, initialDelaySeconds: 20 }
+          resources: {{- toYaml .Values.api.resources | nindent 12 }}
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes: [{ name: tmp, emptyDir: {} }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: lotok-api, labels: { app: lotok-api } }
+spec:
+  selector: { app: lotok-api }
+  ports: [{ port: 4000, targetPort: http, name: http }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lotok-worker
+  labels: {{- include "lotok.labels" . | nindent 4 }}
+    app: lotok-worker
+spec:
+  replicas: {{ .Values.worker.replicas }}
+  selector: { matchLabels: { app: lotok-worker } }
+  template:
+    metadata: { labels: { app: lotok-worker } }
+    spec:
+      securityContext: { runAsNonRoot: true }
+      containers:
+        - name: worker
+          image: {{ include "lotok.image" (dict "root" . "name" "api") }}
+          command: ["node", "--enable-source-maps", "dist/worker.js"]
+          {{- include "lotok.apiEnv" . | nindent 10 }}
+          resources: {{- toYaml .Values.worker.resources | nindent 12 }}
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes: [{ name: tmp, emptyDir: {} }]
+{{- if .Values.api.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: lotok-api }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: lotok-api }
+  minReplicas: {{ .Values.api.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.api.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: {{ .Values.api.autoscaling.targetCPU }} } }
+{{- end }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: lotok-api }
+spec:
+  minAvailable: 1
+  selector: { matchLabels: { app: lotok-api } }
