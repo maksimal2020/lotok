@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Лоток",
+    "slug": "lotok",
+    "scheme": "lotok",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
+    "splash": { "backgroundColor": "#0E8C76" },
+    "ios": {
+      "bundleIdentifier": "ru.lotok.app",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Доступ к фото нужен, чтобы добавить фотографии к объявлению или сообщению.",
+        "NSCameraUsageDescription": "Камера нужна, чтобы сфотографировать товар для объявления."
+      }
+    },
+    "android": {
+      "package": "ru.lotok.app",
+      "adaptiveIcon": { "foregroundImage": "./assets/icon.png", "backgroundColor": "#0E8C76" },
+      "permissions": ["CAMERA", "READ_MEDIA_IMAGES", "POST_NOTIFICATIONS"]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      ["expo-image-picker", { "photosPermission": "Доступ к фото нужен, чтобы добавить фотографии к объявлению." }],
+      ["expo-notifications", { "color": "#0E8C76" }]
+    ],
+    "experiments": { "typedRoutes": false },
+    "extra": {
+      "apiUrl": "http://localhost:4000",
+      "webUrl": "http://localhost:3000"
+    }
+  }
+}
