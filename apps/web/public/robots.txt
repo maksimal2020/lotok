@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /api/
+Disallow: /my/
+Disallow: /messages
+Disallow: /orders
+Disallow: /payments
+Disallow: /settings
+Allow: /
