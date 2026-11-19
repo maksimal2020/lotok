@@ -47,6 +47,8 @@ const envSchema = z
     OPENSEARCH_INDEX: z.string().default('lotok-listings'),
     OPENSEARCH_USERNAME: z.string().optional(),
     OPENSEARCH_PASSWORD: z.string().optional(),
+    /** false — максимальная скорость индексации; wait_for — документ виден в поиске сразу (тесты, малые стенды). */
+    OPENSEARCH_REFRESH: z.enum(['false', 'wait_for']).default('false'),
 
     QUEUE_MODE: z.enum(['bullmq', 'inline']).default('bullmq'),
 

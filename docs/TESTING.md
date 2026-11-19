@@ -37,7 +37,7 @@ cd apps/api && npx jest --selectProjects integration
 ```
 ```bash
 # E2E: сначала собрать API, web и admin (порты 4000/3000/3001 должны быть свободны)
-pnpm --filter @lotok/api build && pnpm --filter @lotok/web build && pnpm --filter @lotok/admin build
+pnpm --filter @lotok/api build && NEXT_PUBLIC_WS_URL=http://localhost:4000 pnpm --filter @lotok/web build && pnpm --filter @lotok/admin build
 cd e2e && npx playwright test --trace off
 ```
 Переменные: `TEST_DATABASE_URL`, `TEST_REDIS_URL`, `TEST_SEARCH_DRIVER=opensearch` (интеграционные тесты на OpenSearch), `E2E_DATABASE_URL`, `E2E_REDIS_URL`.

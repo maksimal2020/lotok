@@ -18,6 +18,9 @@ export default async function globalSetup() {
   await seedReference(db);
   await seedStaff(db);
   await pool.end();
+  if (TEST_ENV.SEARCH_DRIVER === 'opensearch') {
+    await fetch(`${TEST_ENV.OPENSEARCH_URL}/${TEST_ENV.OPENSEARCH_INDEX}`, { method: 'DELETE' }).catch(() => undefined);
+  }
   const redis = new Redis(TEST_ENV.REDIS_URL);
   await redis.flushdb();
   await redis.quit();

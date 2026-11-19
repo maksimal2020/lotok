@@ -11,6 +11,8 @@ export const TEST_ENV: Record<string, string> = {
   STORAGE_LOCAL_DIR: '/tmp/lotok-test-storage',
   SEARCH_DRIVER: process.env.TEST_SEARCH_DRIVER ?? 'postgres',
   OPENSEARCH_INDEX: 'lotok-test-listings',
+  OPENSEARCH_URL: process.env.OPENSEARCH_URL ?? 'http://localhost:9200',
+  OPENSEARCH_REFRESH: 'wait_for',
   PAYMENT_PROVIDER: 'mock',
   LOG_LEVEL: 'error',
   SWAGGER_ENABLED: 'false',

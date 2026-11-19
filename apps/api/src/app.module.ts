@@ -99,6 +99,15 @@ export const DOMAIN_PROVIDERS: Provider[] = [
   { provide: DELIVERY_PROVIDERS, useFactory: () => [new MockDeliveryProvider()] },
 ];
 
+function hasModule(name: string) {
+  try {
+    require.resolve(name);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function coreImports(config: AppConfig) {
   return [
     { module: class ConfigHolder {}, global: true, providers: [{ provide: CONFIG, useValue: config }], exports: [CONFIG] } as DynamicModule,
@@ -108,7 +117,8 @@ function coreImports(config: AppConfig) {
         genReqId: (req) => (req.headers['x-request-id'] as string) ?? crypto.randomUUID(),
         redact: ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]'],
         autoLogging: { ignore: (req) => req.url?.startsWith('/health') ?? false },
-        transport: config.NODE_ENV === 'development' ? { target: 'pino-pretty', options: { singleLine: true } } : undefined,
+        // pino-pretty — dev-зависимость; в образе её нет, тогда остаются JSON-логи (для Loki).
+        transport: config.NODE_ENV === 'development' && hasModule('pino-pretty') ? { target: 'pino-pretty', options: { singleLine: true } } : undefined,
       },
     }),
     DatabaseModule,

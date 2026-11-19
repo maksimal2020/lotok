@@ -14,6 +14,7 @@ export class OpenSearchEngine implements SearchEngine {
   readonly name = 'opensearch' as const;
   private readonly client: Client;
   private readonly index_: string;
+  private readonly refreshMode: 'false' | 'wait_for';
 
   constructor(config: AppConfig) {
     this.client = new Client({
@@ -22,11 +23,12 @@ export class OpenSearchEngine implements SearchEngine {
       requestTimeout: 10_000,
     });
     this.index_ = config.OPENSEARCH_INDEX;
+    this.refreshMode = config.OPENSEARCH_REFRESH;
   }
 
   async ensureIndex() {
     const exists = await this.client.indices.exists({ index: this.index_ });
-    if (exists.body) return;
+    if (exists.body === true || exists.statusCode === 200) return;
     await this.client.indices.create({
       index: this.index_,
       body: {
@@ -76,6 +78,9 @@ export class OpenSearchEngine implements SearchEngine {
           ],
         },
       },
+    }).catch((e: { meta?: { body?: { error?: { type?: string } } } }) => {
+      // Параллельный старт реплик: индекс уже создан другой репликой.
+      if (e?.meta?.body?.error?.type !== 'resource_already_exists_exception') throw e;
     });
   }
 
@@ -207,11 +212,11 @@ export class OpenSearchEngine implements SearchEngine {
   }
 
   async index(doc: ListingSearchDoc) {
-    await this.client.index({ index: this.index_, id: doc.id, body: doc as unknown as Record<string, unknown>, refresh: false });
+    await this.client.index({ index: this.index_, id: doc.id, body: doc as unknown as Record<string, unknown>, refresh: this.refreshMode === 'wait_for' ? 'wait_for' : false });
   }
 
   async remove(id: string) {
-    await this.client.delete({ index: this.index_, id }).catch((e: { meta?: { statusCode?: number } }) => {
+    await this.client.delete({ index: this.index_, id, refresh: this.refreshMode === 'wait_for' ? 'wait_for' : false }).catch((e: { meta?: { statusCode?: number } }) => {
       if (e?.meta?.statusCode !== 404) throw e;
     });
   }

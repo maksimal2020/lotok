@@ -11,6 +11,7 @@ import { categories, regions, users } from '../src/database/schema';
 import { JobsService } from '../src/infra/jobs.service';
 import { MailService, PushService, SmsService } from '../src/infra/messaging.providers';
 import { TEST_ENV } from './env';
+import { SearchService } from '../src/modules/search/search.service';
 
 export interface Harness {
   app: NestExpressApplication;
@@ -29,6 +30,7 @@ export async function createHarness(overrides: Record<string, string> = {}): Pro
   Object.assign(process.env, TEST_ENV, overrides);
   const config = loadConfig({ ...TEST_ENV, ...overrides });
   const app = await createApp(config);
+  if (config.SEARCH_DRIVER === 'opensearch') await app.get(SearchService).engine.ensureIndex();
   await app.listen(0, '127.0.0.1');
   const addr = app.getHttpServer().address() as { port: number };
   return {
