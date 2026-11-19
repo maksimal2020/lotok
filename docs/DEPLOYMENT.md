@@ -9,7 +9,7 @@ pnpm --filter @lotok/shared build
 ```
 ```bash
 # инфраструктура в Docker (если нет локальных PostgreSQL/Redis)
-docker compose up -d postgres redis mailpit
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres redis mailpit
 ```
 ```bash
 cd apps/api && pnpm build && pnpm db:migrate && SEED_DEMO=1 pnpm db:seed
@@ -32,15 +32,42 @@ cd apps/mobile && pnpm start # Expo Dev Server; API по умолчанию http
 Swagger: http://localhost:4000/api/docs. Письма: Mailpit http://localhost:8025 (при `MAIL_DRIVER=smtp`) или в логе API (`MAIL_DRIVER=log`).
 
 ## 2. Полный стек в Docker Compose
+Требуется Docker Engine 24+ с Compose v2 и ~6 ГБ свободной памяти (OpenSearch — 1 ГБ). Файл `.env` не обязателен: значения по умолчанию рассчитаны на локальный запуск.
+
 ```bash
-cp .env.example .env   # при необходимости поправьте значения
+git clone https://github.com/maksimal2020/lotok.git && cd lotok
+```
+```bash
 docker compose up -d --build
 ```
-- Сайт: http://localhost:8080, админка: http://localhost:8081, MinIO: http://localhost:9001, Mailpit: http://localhost:8025.
-- Сервис `migrate` применяет миграции и seed до старта `api`/`worker`.
-- Мониторинг: `docker compose --profile monitoring up -d` (Prometheus :9090, Grafana :3030, Loki + Promtail).
-- Антивирус: `docker compose --profile antivirus up -d` и `AV_DRIVER=clamav`.
-- Проверено в среде разработки: сборка образов API и web (Dockerfile из `infra/docker`), запуск контейнера API (readiness: PostgreSQL, Redis, OpenSearch, хранилище — ok), отдача страниц контейнером web. Полный `docker compose up` целиком в среде разработки не запускался (ограничения Docker Hub по скачиванию образов).
+Первый запуск собирает образы `lotok/api`, `lotok/web`, `lotok/admin` (5–10 минут) и наполняет базу справочниками и 39 демо-объявлениями (`SEED_DEMO=1`, отключается `SEED_DEMO=0`).
+
+| Адрес | Что |
+|---|---|
+| http://localhost:8080 | Сайт (web + API `/api/v1` + WebSocket + фото `/media` через nginx) |
+| http://localhost:8081 | Административная панель |
+| http://localhost:8025 | Mailpit — все письма (подтверждение email, уведомления) |
+| http://localhost:3030 | Grafana (профиль `monitoring`, логин `admin` / `admin`) |
+| http://localhost:9090 | Prometheus (профиль `monitoring`) |
+
+Учётные записи: `admin@lotok.local`, `moderator@`, `support@`, `finance@` — `Admin12345`; `seller@lotok.local` / `buyer@lotok.local` — `Demo12345`.
+
+Состав: PostgreSQL 16, Redis 7, OpenSearch 2.17, SeaweedFS (S3-совместимое хранилище; MinIO больше не публикует образы на Docker Hub), Mailpit, `migrate` (миграции + seed, завершается до старта API), `api`, `worker` (BullMQ: обработка фото, индексация, уведомления, расписания), `web`, `admin`, nginx. Бакеты создаются API автоматически; публичный бакет `lotok-media` доступен только на чтение (`infra/seaweedfs/s3.json`), приватный — только через API по подписанной ссылке.
+
+```bash
+docker compose ps                                   # состояние сервисов
+docker compose logs -f api worker                   # логи
+docker compose --profile monitoring up -d           # + Prometheus, Grafana, Loki, Promtail
+docker compose --profile antivirus up -d            # + ClamAV (и AV_DRIVER=clamav в .env)
+docker compose exec postgres psql -U lotok          # консоль БД
+docker compose down                                 # остановить (данные сохраняются в volumes)
+docker compose down -v                              # остановить и удалить все данные
+```
+После изменения кода: `docker compose up -d --build`. Пересоздать поисковый индекс: админка → «Настройки» → «Переиндексировать».
+
+**Проверено в среде разработки** (2026-11-19): `docker compose up` с чистыми volumes — все сервисы healthy; сценарий в браузере через nginx: вход продавца и покупателя, загрузка фото (обработка sharp → SeaweedFS), публикация, поиск через OpenSearch (индексация worker-ом), чат в реальном времени через WebSocket, заказ с тестовой оплатой, вход в админку и сверка счетов; профиль `monitoring` — Prometheus собирает метрики API, Grafana с дашбордом, Loki получает логи. Профиль `antivirus` не запускался.
+
+Если OpenSearch не стартует из-за `vm.max_map_count` (Linux): `sudo sysctl -w vm.max_map_count=262144`. Если на диске хоста занято более ~90%, OpenSearch блокирует запись (в логах API — `index_create_block_exception` / `flood_stage`): освободите место (`docker system prune`) или для локального стенда отключите порог: `docker compose exec opensearch curl -XPUT localhost:9200/_cluster/settings -H 'Content-Type: application/json' -d '{"persistent":{"cluster.routing.allocation.disk.threshold_enabled":false,"cluster.blocks.create_index":null}}'`. Без OpenSearch можно работать на поиске PostgreSQL: `SEARCH_DRIVER=postgres docker compose up -d`.
 
 ## 3. Production (Kubernetes + Helm)
 Чарт `infra/helm/lotok`: Deployments api / worker / web / admin, HPA, PDB, Ingress (публичный и админский с IP-allowlist), Job миграций (pre-upgrade hook), CronJob резервного копирования, ClamAV.

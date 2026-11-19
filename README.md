@@ -12,12 +12,18 @@
 | `e2e` | Playwright (desktop + mobile) |
 | `infra` | Docker, Compose, nginx, Helm, Prometheus, Grafana, Loki, резервное копирование |
 
-## Быстрый старт
+## Запуск всего проекта в Docker
+```bash
+docker compose up -d --build
+```
+Сайт — http://localhost:8080, админка — http://localhost:8081, почта — http://localhost:8025. Подробности и учётные записи — [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#2-полный-стек-в-docker-compose).
+
+## Локальная разработка
 ```bash
 pnpm install && pnpm --filter @lotok/shared build
 ```
 ```bash
-docker compose up -d postgres redis mailpit
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres redis mailpit
 ```
 ```bash
 cd apps/api && pnpm build && pnpm db:migrate && SEED_DEMO=1 pnpm db:seed && QUEUE_MODE=inline pnpm start
@@ -25,7 +31,7 @@ cd apps/api && pnpm build && pnpm db:migrate && SEED_DEMO=1 pnpm db:seed && QUEU
 ```bash
 cd apps/web && pnpm dev
 ```
-Подробно — [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Полный стек: `docker compose up -d --build`.
+Подробно — [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Документация
 - [CLAUDE.md](CLAUDE.md) — правила проекта

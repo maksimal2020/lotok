@@ -1,0 +1,13 @@
+{
+  "identities": [
+    {
+      "name": "lotok",
+      "credentials": [{ "accessKey": "lotok", "secretKey": "lotok-s3-secret" }],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    },
+    {
+      "name": "anonymous",
+      "actions": ["Read:lotok-media"]
+    }
+  ]
+}

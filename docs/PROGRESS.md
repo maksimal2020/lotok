@@ -35,7 +35,7 @@
 Вкладки (главная с рекомендациями, поиск с сортировкой/ценой и премиум-блоком, размещение объявления с фото и характеристиками, сообщения, профиль), карточка объявления (покупка через страницу оплаты, чат, звонок, избранное), чат в реальном времени, вход (email/SMS), регистрация, мои объявления, заказы, избранное. Refresh-токен в SecureStore, push-регистрация.
 
 ### Инфраструктура
-Dockerfile API/worker и Next.js (web/admin), docker-compose (PostgreSQL, Redis, OpenSearch, MinIO, Mailpit, ClamAV, migrate, api, worker, web, admin, nginx, Prometheus, Grafana, Loki/Promtail), nginx, Helm-чарт (HPA, PDB, миграции hook'ом, ingress с allowlist админки, бэкап CronJob), GitLab CI (typecheck, unit, integration, integration на OpenSearch, E2E, сборка бандлов и образов, деплой), алерты Prometheus, дашборд Grafana, скрипты backup/restore.
+Dockerfile API/worker и Next.js (web/admin), docker-compose (PostgreSQL, Redis, OpenSearch, SeaweedFS (S3), Mailpit, ClamAV, migrate, api, worker, web, admin, nginx, Prometheus, Grafana, Loki/Promtail), nginx, Helm-чарт (HPA, PDB, миграции hook'ом, ingress с allowlist админки, бэкап CronJob), GitLab CI (typecheck, unit, integration, integration на OpenSearch, E2E, сборка бандлов и образов, деплой), алерты Prometheus, дашборд Grafana, скрипты backup/restore.
 
 ## Результаты проверок (запущены в этой сессии)
 | Проверка | Результат |
@@ -51,13 +51,13 @@ Dockerfile API/worker и Next.js (web/admin), docker-compose (PostgreSQL, Redis,
 | E2E Playwright (desktop + Pixel 7), полный сценарий п.16 ТЗ | 16/16 ✅ |
 | Docker-образ API: сборка + запуск + readiness | ✅ |
 | Docker-образ web: сборка + запуск | ✅ |
+| `docker compose up` всего стека с нуля + браузерный сценарий через nginx + профиль monitoring | ✅ |
 
 ## Известные ограничения и долги (явно)
 - **Платежи и доставка — только тестовый режим.** ЮKassa-адаптер не проверен на реальном магазине; выплаты продавцам не реализованы (нужен провайдер со сплитованием — см. LEGAL.md §5).
 - SMS.ru, Expo Push, ClamAV, SMTP-боевой — адаптеры без проверки с реальными ключами/сервисами.
 - Нативные сборки iOS/Android (EAS), тесты на физических устройствах — не выполнялись.
 - Нагрузочное тестирование и pentest — не выполнялись. **Production-ready не заявляется.**
-- `docker compose up` всего стека целиком не запускался в среде разработки (лимиты Docker Hub); собраны и запущены образы API и web.
 - 2FA для сотрудников, WAF/капча — не реализованы.
 - Интеграция с ОРД (отчётность по рекламе) и службами доставки — не реализована.
 - Мобильное приложение: нет редактирования объявлений, фильтров по характеристикам, вложений в чате.

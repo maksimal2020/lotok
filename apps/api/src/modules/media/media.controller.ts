@@ -27,8 +27,12 @@ export class MediaController {
   @Get('private')
   async private(@Query('key') key: string, @Query('exp') exp: string, @Query('sig') sig: string, @Res() res: Response) {
     const buf = await this.media.readPrivate(String(key), Number(exp), String(sig));
-    res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Content-Disposition', 'attachment');
+    // Превью вложений чата показываются в <img>, документы — только скачиванием.
+    const ext = String(key).split('.').pop()?.toLowerCase();
+    const imageType = ext === 'webp' ? 'image/webp' : ext === 'jpg' ? 'image/jpeg' : null;
+    res.setHeader('Content-Type', imageType ?? 'application/octet-stream');
+    res.setHeader('Content-Disposition', imageType ? 'inline' : 'attachment');
+    res.setHeader('Content-Security-Policy', "default-src 'none'");
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Cache-Control', 'private, no-store');
     res.send(buf);

@@ -1,0 +1,7 @@
+# Для локальной разработки без контейнеров приложений: публикует порты инфраструктуры на localhost.
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres redis mailpit [opensearch seaweedfs]
+services:
+  postgres: { ports: ["127.0.0.1:5432:5432"] }
+  redis: { ports: ["127.0.0.1:6379:6379"] }
+  opensearch: { ports: ["127.0.0.1:9200:9200"] }
+  seaweedfs: { ports: ["127.0.0.1:8333:8333"] }

@@ -26,6 +26,17 @@ export class OpenSearchEngine implements SearchEngine {
     this.refreshMode = config.OPENSEARCH_REFRESH;
   }
 
+  private ensured: Promise<void> | null = null;
+
+  /** Индекс со схемой создаётся до первой записи/поиска — иначе OpenSearch создаст его с динамической схемой. */
+  private ready(): Promise<void> {
+    this.ensured ??= this.ensureIndex().catch((e) => {
+      this.ensured = null;
+      throw e;
+    });
+    return this.ensured;
+  }
+
   async ensureIndex() {
     const exists = await this.client.indices.exists({ index: this.index_ });
     if (exists.body === true || exists.statusCode === 200) return;
@@ -112,6 +123,7 @@ export class OpenSearchEngine implements SearchEngine {
   }
 
   async search(q: ResolvedQuery): Promise<EngineResult> {
+    await this.ready();
     const must: Q[] = q.q
       ? [
           {
@@ -173,6 +185,7 @@ export class OpenSearchEngine implements SearchEngine {
   }
 
   async suggest(prefix: string, limit: number) {
+    await this.ready();
     const res = await this.client.search({
       index: this.index_,
       body: {
@@ -198,6 +211,7 @@ export class OpenSearchEngine implements SearchEngine {
   }
 
   async mapPoints(q: ResolvedQuery, limit: number) {
+    await this.ready();
     const res = await this.client.search({
       index: this.index_,
       body: {
@@ -212,10 +226,12 @@ export class OpenSearchEngine implements SearchEngine {
   }
 
   async index(doc: ListingSearchDoc) {
+    await this.ready();
     await this.client.index({ index: this.index_, id: doc.id, body: doc as unknown as Record<string, unknown>, refresh: this.refreshMode === 'wait_for' ? 'wait_for' : false });
   }
 
   async remove(id: string) {
+    await this.ready();
     await this.client.delete({ index: this.index_, id, refresh: this.refreshMode === 'wait_for' ? 'wait_for' : false }).catch((e: { meta?: { statusCode?: number } }) => {
       if (e?.meta?.statusCode !== 404) throw e;
     });
