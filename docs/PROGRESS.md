@@ -35,7 +35,7 @@
 Вкладки (главная с рекомендациями, поиск с сортировкой/ценой и премиум-блоком, размещение объявления с фото и характеристиками, сообщения, профиль), карточка объявления (покупка через страницу оплаты, чат, звонок, избранное), чат в реальном времени, вход (email/SMS), регистрация, мои объявления, заказы, избранное. Refresh-токен в SecureStore, push-регистрация.
 
 ### Инфраструктура
-Dockerfile API/worker и Next.js (web/admin), docker-compose (PostgreSQL, Redis, OpenSearch, SeaweedFS (S3), Mailpit, ClamAV, migrate, api, worker, web, admin, nginx, Prometheus, Grafana, Loki/Promtail), nginx, Helm-чарт (HPA, PDB, миграции hook'ом, ingress с allowlist админки, бэкап CronJob), GitLab CI (typecheck, unit, integration, integration на OpenSearch, E2E, сборка бандлов и образов, деплой), алерты Prometheus, дашборд Grafana, скрипты backup/restore.
+Dockerfile API/worker и Next.js (web/admin), docker-compose (PostgreSQL, Redis, OpenSearch, SeaweedFS (S3), Mailpit, ClamAV, migrate, api, worker, web, admin, nginx, Prometheus, Grafana, Loki/Promtail), nginx, Helm-чарт (HPA, PDB, миграции hook'ом, начальные справочники при первой установке, ingress с allowlist админки, бэкап CronJob, imagePullSecrets, `values-production.yaml`), GitHub Actions (typecheck, unit, integration, integration на OpenSearch, запуск всего стека в compose, E2E, образы в ghcr.io, деплой Helm с ручным подтверждением), ветки `test → dev → main` (docs/BRANCHING.md), алерты Prometheus, дашборд Grafana, скрипты backup/restore.
 
 ## Результаты проверок (запущены в этой сессии)
 | Проверка | Результат |
@@ -52,6 +52,10 @@ Dockerfile API/worker и Next.js (web/admin), docker-compose (PostgreSQL, Redis,
 | Docker-образ API: сборка + запуск + readiness | ✅ |
 | Docker-образ web: сборка + запуск | ✅ |
 | `docker compose up` всего стека с нуля + браузерный сценарий через nginx + профиль monitoring | ✅ |
+| Smoke-шаги job `compose` из CI на локальном стеке (миграции, readiness, категории, поиск, web, admin) | ✅ |
+| `helm lint` / `helm template` с `values-production.yaml` (install и upgrade) | ✅ |
+| `actionlint` для `.github/workflows/ci.yml` | ✅ |
+| Запуск workflow на GitHub Actions, деплой в реальный кластер | ⏳ не выполнялись (первый запуск — после push в `test`) |
 
 ## Известные ограничения и долги (явно)
 - **Платежи и доставка — только тестовый режим.** ЮKassa-адаптер не проверен на реальном магазине; выплаты продавцам не реализованы (нужен провайдер со сплитованием — см. LEGAL.md §5).
@@ -62,6 +66,8 @@ Dockerfile API/worker и Next.js (web/admin), docker-compose (PostgreSQL, Redis,
 - Интеграция с ОРД (отчётность по рекламе) и службами доставки — не реализована.
 - Мобильное приложение: нет редактирования объявлений, фильтров по характеристикам, вложений в чате.
 - UI-кит продублирован в web и admin (вынести в `packages/ui`).
+- Стенда `dev` в Kubernetes пока нет — `dev` проверяется через compose; `values-staging.yaml` и автодеплой dev добавить при появлении стенда.
+- Деплой из CI выключен до готовности кластера (`K8S_DEPLOY_ENABLED`); защиту веток и environment `production` настраивает владелец репозитория (docs/BRANCHING.md).
 - Юридические тексты в справочном центре — черновики.
 
 ## Следующий шаг

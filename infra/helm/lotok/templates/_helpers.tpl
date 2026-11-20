@@ -13,3 +13,13 @@ envFrom:
   - configMapRef: { name: lotok-config }
   - secretRef: { name: {{ .Values.existingSecret }} }
 {{- end -}}
+
+{{/* Секрет для приватного реестра образов (например, ghcr.io). */}}
+{{- define "lotok.imagePullSecrets" -}}
+{{- with .Values.image.pullSecrets -}}
+imagePullSecrets:
+{{- range . }}
+  - name: {{ . }}
+{{- end }}
+{{- end }}
+{{- end -}}

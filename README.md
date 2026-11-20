@@ -33,11 +33,14 @@ cd apps/web && pnpm dev
 ```
 Подробно — [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
+## Ветки
+`test` → `dev` → `main`: проверка в Docker Compose → кандидат в релиз → production в Kubernetes. Подробно — [docs/BRANCHING.md](docs/BRANCHING.md).
+
 ## Документация
 - [CLAUDE.md](CLAUDE.md) — правила проекта
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/DATABASE.md](docs/DATABASE.md) · [docs/API.md](docs/API.md)
 - [docs/SECURITY.md](docs/SECURITY.md) · [docs/LEGAL.md](docs/LEGAL.md)
-- [docs/TESTING.md](docs/TESTING.md) · [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- [docs/TESTING.md](docs/TESTING.md) · [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) · [docs/BRANCHING.md](docs/BRANCHING.md)
 - [docs/ROADMAP.md](docs/ROADMAP.md) · [docs/PROGRESS.md](docs/PROGRESS.md) · [docs/DECISIONS.md](docs/DECISIONS.md)
 
 > Платежи и доставка работают в **тестовом режиме** (mock-провайдеры). Реальные списания не производятся. Подключение ЮKassa и служб доставки — см. DEPLOYMENT.md, раздел 5.

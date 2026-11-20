@@ -263,6 +263,10 @@ async function seedDemo(app: Awaited<ReturnType<typeof NestFactory.createApplica
 
 async function main() {
   const config = loadConfig();
+  // В production служебные учётные записи создаются только с явно заданным стойким паролем.
+  if (config.isProd && (process.env.SEED_ADMIN_PASSWORD ?? '').length < 12) {
+    throw new Error('В production задайте SEED_ADMIN_PASSWORD (не короче 12 символов) в секретах окружения');
+  }
   const app = await NestFactory.createApplicationContext(WorkerModule.forRoot({ ...config, QUEUE_MODE: 'inline' }), { logger: ['error', 'warn'] });
   const db = app.get<Db>(DB);
   await seedReference(db);

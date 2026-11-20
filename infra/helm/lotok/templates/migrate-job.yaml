@@ -14,8 +14,15 @@ spec:
   template:
     spec:
       restartPolicy: Never
+      {{- include "lotok.imagePullSecrets" . | nindent 6 }}
       containers:
         - name: migrate
           image: {{ include "lotok.image" (dict "root" . "name" "api") }}
+          {{- if and .Release.IsInstall .Values.seed.onInstall }}
+          # Первая установка: миграции + справочники (категории, регионы, тарифы, стоп-слова) и служебные учётные записи.
+          # Seed идемпотентен, но при обновлениях не запускается, чтобы не возвращать удалённые в админке категории.
+          command: ["sh", "-c", "node dist/database/migrate.js && node dist/database/seed/seed.js"]
+          {{- else }}
           command: ["node", "dist/database/migrate.js"]
+          {{- end }}
           {{- include "lotok.apiEnv" . | nindent 10 }}

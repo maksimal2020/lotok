@@ -8,6 +8,12 @@
 3. Подними окружение (см. `docs/DEPLOYMENT.md` → «Локальная разработка»): PostgreSQL 16, Redis 7.
 4. После завершения этапа — обнови `docs/PROGRESS.md` и при необходимости остальные документы.
 
+## Ветки и выкат (см. `docs/BRANCHING.md`)
+- Работа всегда начинается в ветке `test` и пушится туда для проверки в Docker Compose.
+- Продвижение только вперёд и только после подтверждения пользователя: `test → dev` (проверка в compose), `dev → main` (production, Kubernetes). Слияние `--ff-only`, без правок при переносе.
+- Код и конфигурация во всех ветках одинаковые; различия окружений — только в `values-*.yaml`, `.env` и секретах. Не заводить «compose-версию» и «k8s-версию» кода.
+- Не пушить напрямую в `main`/`dev` без явного разрешения.
+
 ## Структура
 - `packages/shared` — общие типы ответов API, zod-схемы входных данных, enum'ы, RBAC-матрица, машины состояний (объявление, заказ), API-клиент, дизайн-токены. **Источник истины для контрактов.** После изменений: `pnpm --filter @lotok/shared build`.
 - `apps/api` — NestJS 11 (REST `/api/v1`, Socket.IO, BullMQ-worker). Drizzle ORM, миграции в `apps/api/drizzle`.
@@ -15,7 +21,8 @@
 - `apps/admin` — отдельный Next.js — административная панель.
 - `apps/mobile` — Expo / React Native (iOS + Android).
 - `e2e` — Playwright E2E (desktop + mobile viewport).
-- `infra` — Docker, Compose, nginx, Helm, Prometheus/Grafana/Loki, бэкапы.
+- `infra` — Docker, Compose, nginx, Helm (`infra/helm/lotok`, `values-production.yaml`), Prometheus/Grafana/Loki, бэкапы.
+- `.github/workflows/ci.yml` — CI/CD (GitHub Actions).
 
 ## Архитектурные ограничения (не нарушать)
 - Права доступа проверяются **на backend** (`JwtAuthGuard` глобально, `@RequirePermissions`, проверки владельца в сервисах). Чужой объект = 404 (защита от IDOR).

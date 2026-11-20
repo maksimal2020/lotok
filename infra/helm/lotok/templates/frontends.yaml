@@ -13,6 +13,7 @@ spec:
     metadata: { labels: { app: lotok-{{ $name }} } }
     spec:
       securityContext: { runAsNonRoot: true }
+      {{- include "lotok.imagePullSecrets" $ | nindent 6 }}
       containers:
         - name: {{ $name }}
           image: {{ include "lotok.image" (dict "root" $ "name" $name) }}

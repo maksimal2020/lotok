@@ -70,16 +70,23 @@ docker compose down -v                              # остановить и у
 Если OpenSearch не стартует из-за `vm.max_map_count` (Linux): `sudo sysctl -w vm.max_map_count=262144`. Если на диске хоста занято более ~90%, OpenSearch блокирует запись (в логах API — `index_create_block_exception` / `flood_stage`): освободите место (`docker system prune`) или для локального стенда отключите порог: `docker compose exec opensearch curl -XPUT localhost:9200/_cluster/settings -H 'Content-Type: application/json' -d '{"persistent":{"cluster.routing.allocation.disk.threshold_enabled":false,"cluster.blocks.create_index":null}}'`. Без OpenSearch можно работать на поиске PostgreSQL: `SEARCH_DRIVER=postgres docker compose up -d`.
 
 ## 3. Production (Kubernetes + Helm)
-Чарт `infra/helm/lotok`: Deployments api / worker / web / admin, HPA, PDB, Ingress (публичный и админский с IP-allowlist), Job миграций (pre-upgrade hook), CronJob резервного копирования, ClamAV.
+Production разворачивается из ветки `main` (порядок веток и выката — [BRANCHING.md](BRANCHING.md)). Чарт `infra/helm/lotok`: Deployments api / worker / web / admin, HPA, PDB, Ingress (публичный и админский с IP-allowlist), Job миграций (pre-upgrade hook), CronJob резервного копирования, ClamAV. Значения окружения — `infra/helm/lotok/values-production.yaml`.
 
-1. Подготовить управляемые сервисы (в РФ — для локализации ПДн): PostgreSQL 16 (с PITR), Redis 7, OpenSearch 2.x (≥ 3 узла, реплики), S3 (публичный бакет за CDN + приватный), SMTP, SMS-шлюз, ЮKassa (магазин), Expo/EAS.
-2. Создать Secret `lotok-secrets` из secret storage (Vault/Lockbox/External Secrets): `DATABASE_URL, REDIS_URL, JWT_ACCESS_SECRET, APP_SIGNING_SECRET, S3_ACCESS_KEY, S3_SECRET_KEY, YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY, SMSRU_API_ID, EXPO_ACCESS_TOKEN, METRICS_TOKEN, SMTP_URL, OPENSEARCH_PASSWORD`. Секреты в Git не хранятся.
-3. Файл значений окружения (домены, S3, OpenSearch) — переменная CI `HELM_VALUES_FILE`.
-4. Деплой — GitLab CI (`.gitlab-ci.yml`): staging автоматически из ветки по умолчанию, production — вручную по тегу:
+### Чек-лист первого деплоя
+1. **Регион размещения.** Для пользователей из РФ база с персональными данными должна находиться в РФ (152-ФЗ, ч. 5 ст. 18; см. [LEGAL.md](LEGAL.md) §1). Кластер и управляемые сервисы за пределами РФ допустимы только после заключения юриста о схеме обработки ПДн.
+2. **Управляемые сервисы:** Kubernetes с ingress-nginx и cert-manager (или аналогом), PostgreSQL 16 (с PITR), Redis 7, OpenSearch 2.x (≥ 3 узла, реплики) — или `SEARCH_DRIVER=postgres` на старте, S3 (публичный бакет за CDN + приватный + бакет бэкапов), SMTP, SMS-шлюз, ЮKassa, Expo/EAS.
+3. **Secret `lotok-secrets`** в namespace `lotok` — из secret storage (Vault / External Secrets / Sealed Secrets): `SEED_ADMIN_PASSWORD` (≥ 12 символов, нужен при первой установке), `DATABASE_URL, REDIS_URL, JWT_ACCESS_SECRET, APP_SIGNING_SECRET, S3_ACCESS_KEY, S3_SECRET_KEY, YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY, SMSRU_API_ID, EXPO_ACCESS_TOKEN, METRICS_TOKEN, SMTP_URL, OPENSEARCH_PASSWORD`. Секреты в Git не хранятся.
+4. **Secret `ghcr-pull`** — доступ кластера к приватным образам в ghcr.io (команда — в [BRANCHING.md](BRANCHING.md)).
+5. **`values-production.yaml`** — заменить домены `lotok.example`, адреса S3/CDN/OpenSearch, подсети доступа к админке.
+6. **GitHub:** environment `production` с ревьюерами и секретом `KUBE_CONFIG`, переменные `SITE_URL`, `ADMIN_SITE_URL`, затем `K8S_DEPLOY_ENABLED=true`.
+7. Первая установка (`helm install`) сама загружает справочники (категории, регионы, тарифы, стоп-слова) и создаёт сотрудников `admin@`, `moderator@`, `support@`, `finance@lotok.local` с паролем `SEED_ADMIN_PASSWORD` (`seed.onInstall` в values.yaml; без пароля seed в production не запустится). Демо-объявления в production не создаются. Сразу после установки — сменить пароли сотрудников и завести реальных; затем `POST /admin/search/reindex` (или задание `search.reindex-stale` проиндексирует объявления в течение 10 минут).
+
+### Как происходит выкат
+Push/merge в `main` → GitHub Actions: типы, unit, integration (PostgreSQL и OpenSearch), E2E → сборка образов `ghcr.io/<owner>/lotok/{api,web,admin}:<sha>` → ожидание подтверждения в environment `production` → 
 ```bash
-helm upgrade --install lotok infra/helm/lotok -n lotok --create-namespace -f values.production.yaml --set image.tag=<sha> --wait --atomic
+helm upgrade --install lotok infra/helm/lotok -n lotok --create-namespace -f infra/helm/lotok/values-production.yaml --set image.tag=<sha> --wait --atomic
 ```
-5. После первого деплоя: `POST /admin/search/reindex` (или задание `search.reindex-stale` проиндексирует объявления в течение 10 минут).
+Миграции выполняет Job до выката новых подов; при ошибке `--atomic` откатывает релиз. Ручной откат: `helm rollback lotok <ревизия> -n lotok` (миграции БД не откатываются — они пишутся обратно совместимыми).
 
 Конфигурация валидируется при старте (`apps/api/src/config/config.ts`): production не запустится с dev-секретами, `QUEUE_MODE=inline`, `ENABLE_TEST_ENDPOINTS`, без `COOKIE_SECURE`, а ЮKassa — без реквизитов.
 

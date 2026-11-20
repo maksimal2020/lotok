@@ -1,0 +1,27 @@
+# Значения окружения production (ветка main). Накладываются поверх values.yaml:
+#   helm upgrade --install lotok infra/helm/lotok -f infra/helm/lotok/values-production.yaml ...
+# Здесь — только несекретные настройки. Секреты — в Kubernetes Secret `lotok-secrets`
+# (создаётся из secret storage кластера, список ключей — в values.yaml → existingSecret).
+#
+# TODO перед первым деплоем: заменить домены lotok.example, адреса S3/OpenSearch и сеть админки
+# на реальные (см. docs/DEPLOYMENT.md §3 «Чек-лист первого деплоя»).
+
+image:
+  pullSecrets: [ghcr-pull]   # docker-registry Secret для ghcr.io (репозиторий приватный)
+
+config:
+  API_PUBLIC_URL: https://lotok.example
+  WEB_URL: https://lotok.example
+  ADMIN_URL: https://admin.lotok.example
+  CORS_ORIGINS: https://lotok.example,https://admin.lotok.example
+  S3_ENDPOINT: https://storage.yandexcloud.net
+  S3_REGION: ru-central1
+  S3_PUBLIC_URL: https://cdn.lotok.example
+  OPENSEARCH_URL: https://opensearch.internal:9200
+  MAIL_FROM: "Лоток <no-reply@lotok.example>"
+
+ingress:
+  host: lotok.example
+  adminHost: admin.lotok.example
+  # Админка — только из корпоративной сети / VPN. Укажите реальные подсети через запятую.
+  adminWhitelist: "10.0.0.0/8"

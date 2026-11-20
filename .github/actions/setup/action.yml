@@ -1,0 +1,14 @@
+name: Setup
+description: Node 22 + pnpm (версия из package.json → packageManager), зависимости, сборка @lotok/shared
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: pnpm
+    - run: pnpm install --frozen-lockfile
+      shell: bash
+    - run: pnpm --filter @lotok/shared build
+      shell: bash

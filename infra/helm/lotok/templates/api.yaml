@@ -17,6 +17,7 @@ spec:
         prometheus.io/path: /metrics
     spec:
       securityContext: { runAsNonRoot: true }
+      {{- include "lotok.imagePullSecrets" . | nindent 6 }}
       containers:
         - name: api
           image: {{ include "lotok.image" (dict "root" . "name" "api") }}
@@ -50,6 +51,7 @@ spec:
     metadata: { labels: { app: lotok-worker } }
     spec:
       securityContext: { runAsNonRoot: true }
+      {{- include "lotok.imagePullSecrets" . | nindent 6 }}
       containers:
         - name: worker
           image: {{ include "lotok.image" (dict "root" . "name" "api") }}

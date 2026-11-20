@@ -1,0 +1,226 @@
+# CI/CD «Лоток». Порядок выката: test → dev → main (см. docs/BRANCHING.md).
+#   test, dev — проверки + запуск всего стека в Docker Compose (так же, как его проверяют локально).
+#   main      — проверки + E2E → сборка образов в ghcr.io → деплой в Kubernetes (Helm) после ручного подтверждения.
+# Секреты (KUBE_CONFIG) — в Settings → Secrets and variables → Actions / Environments, не в репозитории.
+name: CI
+
+on:
+  push:
+    branches: [test, dev, main]
+  pull_request:
+    branches: [dev, main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: pnpm --filter @lotok/api typecheck
+      - run: pnpm --filter @lotok/web typecheck
+      - run: pnpm --filter @lotok/admin typecheck
+      - run: pnpm --filter @lotok/mobile typecheck
+
+  unit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: pnpm --filter @lotok/shared test
+      - run: npx jest --selectProjects unit --ci
+        working-directory: apps/api
+      - run: npx jest --ci
+        working-directory: apps/mobile
+
+  integration:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: { POSTGRES_USER: lotok, POSTGRES_PASSWORD: lotok, POSTGRES_DB: lotok_test }
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U lotok" --health-interval 5s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: npx jest --selectProjects integration --ci
+        working-directory: apps/api
+
+  # Поиск и чат на OpenSearch (production-движок поиска).
+  integration-opensearch:
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || github.base_ref == 'main'
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: { POSTGRES_USER: lotok, POSTGRES_PASSWORD: lotok, POSTGRES_DB: lotok_test }
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U lotok" --health-interval 5s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-retries 20
+      opensearch:
+        image: opensearchproject/opensearch:2.17.1
+        env:
+          discovery.type: single-node
+          DISABLE_SECURITY_PLUGIN: 'true'
+          DISABLE_INSTALL_DEMO_CONFIG: 'true'
+          OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+        ports: ['9200:9200']
+        options: --health-cmd "curl -fs http://localhost:9200/_cluster/health" --health-interval 10s --health-retries 30
+    env:
+      TEST_SEARCH_DRIVER: opensearch
+      OPENSEARCH_URL: http://localhost:9200
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      # Диск раннера может быть заполнен выше порога OpenSearch — для одноразового тестового узла порог не нужен.
+      - run: >
+          curl -fsS -XPUT localhost:9200/_cluster/settings -H 'Content-Type: application/json'
+          -d '{"persistent":{"cluster.routing.allocation.disk.threshold_enabled":false}}'
+      - run: npx jest --selectProjects integration --ci test/search-chat.e2e.ts
+        working-directory: apps/api
+
+  # Весь стек в Docker Compose — то же, что запускается локально для проверки дизайна и функционала.
+  compose:
+    if: github.ref == 'refs/heads/test' || github.ref == 'refs/heads/dev' || github.base_ref == 'dev'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo sysctl -w vm.max_map_count=262144
+      - name: Сборка и запуск
+        run: docker compose up -d --build
+      - name: Ожидание готовности (миграции, seed, API, web, admin)
+        run: |
+          for _ in $(seq 1 90); do
+            if curl -fs -o /dev/null http://localhost:8080/api/v1/categories \
+              && curl -fs -o /dev/null http://localhost:8080/ \
+              && curl -fs -o /dev/null http://localhost:8081/; then
+              echo "Стек готов"; exit 0
+            fi
+            sleep 5
+          done
+          echo "Стек не поднялся за 7,5 минут"; exit 1
+      - name: Проверки
+        run: |
+          docker compose ps
+          test "$(docker compose ps -a --format '{{.Service}} {{.ExitCode}}' | awk '$1=="migrate"{print $2}')" = "0"
+          docker compose exec -T api node -e "fetch('http://127.0.0.1:4000/health/ready').then(r=>{console.log('ready',r.status);process.exit(r.ok?0:1)})"
+          curl -fsS http://localhost:8080/api/v1/categories | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const n=JSON.parse(s).length;console.log('categories',n);process.exit(n>0?0:1)})"
+          curl -fsS 'http://localhost:8080/api/v1/search?limit=1' -o /dev/null -w 'search %{http_code}\n'
+      - name: Логи при ошибке
+        if: failure()
+        run: docker compose logs --no-color --tail=200
+      - if: always()
+        run: docker compose down -v
+
+  e2e:
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    container: mcr.microsoft.com/playwright:v1.63.0-noble
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: { POSTGRES_USER: lotok, POSTGRES_PASSWORD: lotok, POSTGRES_DB: lotok_e2e }
+        options: --health-cmd "pg_isready -U lotok" --health-interval 5s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-retries 20
+    env:
+      CI: 'true'
+      E2E_DATABASE_URL: postgres://lotok:lotok@postgres:5432/lotok_e2e
+      E2E_REDIS_URL: redis://redis:6379/14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: pnpm --filter @lotok/api build
+      - run: NEXT_PUBLIC_WS_URL=http://localhost:4000 pnpm --filter @lotok/web build
+      - run: pnpm --filter @lotok/admin build
+      - run: npx playwright test --trace off
+        working-directory: e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 7
+
+  images:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [typecheck, unit, integration, integration-opensearch, e2e]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - { name: api, file: infra/docker/api.Dockerfile, app: '' }
+          - { name: web, file: infra/docker/next.Dockerfile, app: web }
+          - { name: admin, file: infra/docker/next.Dockerfile, app: admin }
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          push: true
+          build-args: |
+            APP=${{ matrix.app }}
+            NEXT_PUBLIC_SITE_URL=${{ vars.SITE_URL || 'https://lotok.example' }}
+            NEXT_PUBLIC_ADMIN_URL=${{ vars.ADMIN_SITE_URL || 'https://admin.lotok.example' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ matrix.name }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ matrix.name }}:latest
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  # Деплой включается переменной репозитория K8S_DEPLOY_ENABLED=true, когда кластер готов.
+  # Environment «production» с обязательными ревьюерами = ручное подтверждение каждого выката.
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.K8S_DEPLOY_ENABLED == 'true'
+    needs: [images]
+    runs-on: ubuntu-24.04
+    environment: production
+    concurrency: { group: deploy-production, cancel-in-progress: false }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with: { version: v3.16.3 }
+      - name: kubeconfig
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "$RUNNER_TEMP/kubeconfig"
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+          echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      # Миграции выполняются pre-upgrade hook'ом (Job) до выката новых подов; при ошибке — откат (--atomic).
+      - run: >
+          helm upgrade --install lotok infra/helm/lotok
+          --namespace lotok --create-namespace
+          -f infra/helm/lotok/values-production.yaml
+          --set image.registry="$REGISTRY"
+          --set image.tag=${{ github.sha }}
+          --wait --timeout 10m --atomic

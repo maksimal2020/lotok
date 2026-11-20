@@ -1,12 +1,14 @@
-# Значения по умолчанию. Окружение-специфичные значения и секреты — в отдельном файле (HELM_VALUES_FILE в CI)
-# и в Kubernetes Secret (`existingSecret`), создаваемом из secret storage (Vault / Lockbox / External Secrets).
+# Значения по умолчанию. Окружение-специфичные значения — в values-production.yaml, секреты —
+# в Kubernetes Secret (`existingSecret`), создаваемом из secret storage (Vault / Lockbox / External Secrets).
 
 image:
-  registry: registry.example.com/lotok
-  tag: latest
+  registry: ghcr.io/maksimal2020/lotok   # CI подставляет фактический реестр (--set image.registry)
+  tag: latest                            # CI подставляет SHA коммита (--set image.tag)
   pullPolicy: IfNotPresent
+  # Имена Kubernetes Secret типа docker-registry для приватного реестра (см. docs/DEPLOYMENT.md §3).
+  pullSecrets: []
 
-existingSecret: lotok-secrets   # ключи: DATABASE_URL, REDIS_URL, JWT_ACCESS_SECRET, APP_SIGNING_SECRET, S3_ACCESS_KEY, S3_SECRET_KEY, YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY, SMSRU_API_ID, EXPO_ACCESS_TOKEN, METRICS_TOKEN, SMTP_URL, OPENSEARCH_PASSWORD
+existingSecret: lotok-secrets   # ключи: SEED_ADMIN_PASSWORD (нужен при первой установке), DATABASE_URL, REDIS_URL, JWT_ACCESS_SECRET, APP_SIGNING_SECRET, S3_ACCESS_KEY, S3_SECRET_KEY, YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY, SMSRU_API_ID, EXPO_ACCESS_TOKEN, METRICS_TOKEN, SMTP_URL, OPENSEARCH_PASSWORD
 
 config:
   NODE_ENV: production
@@ -60,6 +62,11 @@ ingress:
   tls: { enabled: true, secretName: lotok-tls }
   # Админка — только из корпоративной сети/VPN.
   adminWhitelist: "10.0.0.0/8"
+
+# При первой установке (helm install) Job миграций также загружает справочники и создаёт сотрудников
+# admin@/moderator@/support@/finance@lotok.local с паролем SEED_ADMIN_PASSWORD из секрета. Демо-данные в production не создаются.
+seed:
+  onInstall: true
 
 clamav:
   enabled: true
